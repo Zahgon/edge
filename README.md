@@ -1,82 +1,211 @@
 # Edge
 
-[![gh-workflow-image]][gh-workflow-url] [![typescript-image]][typescript-url] [![npm-image]][npm-url] [![license-image]][license-url]
+[![go][gh-workflow-image]][gh-workflow-url] [![license-image]][license-url]
 
-Edge is a simple, Modern, and batteries included template engine for Node.js. Edge is similar to writing JavaScript. If you know JavaScript, you know Edge.
+Edge is a simple, modern and batteries included template engine. Edge is similar to writing
+JavaScript: if you know JavaScript, you know Edge.
 
-## 👉 [Learn more](https://edgejs.dev)
+This module is Edge 6.5.1 for Go. Templates are compiled exactly as Edge compiles them (the same
+lexer, the same parser, the same generated code) and run by a JavaScript interpreter with V8's
+semantics, so a template renders to the same bytes, and fails with the same errors, as it does with
+`edge.js` on Node.js. Learn the template syntax at [edgejs.dev](https://edgejs.dev).
 
-**Featured sponsors**
+```sh
+go get github.com/edge-js/edge-go
+```
 
-<table>
+## Usage
 
-<tr>
-<td>
+```go
+package main
 
-<a href="https://route4me.com/?utm_source=adonisjs.com">
-  <img src="https://raw.githubusercontent.com/thetutlage/static/refs/heads/main/featured_sponsors/logos/route4me.jpg" />
-</a>
+import (
+	"fmt"
+	"path/filepath"
 
-</td>
+	edge "github.com/edge-js/edge-go"
+)
 
-<td>
+func main() {
+	views, err := filepath.Abs("views")
+	if err != nil {
+		panic(err)
+	}
+	e := edge.Create(edge.Options{Cache: true})
+	e.Mount(views)
+	e.Global("appName", "Acme")
 
-<a href="https://ezycourse.com/?utm_source=adonisjs.com">
-  <img src="https://raw.githubusercontent.com/thetutlage/static/refs/heads/main/featured_sponsors/logos/ezycourse.jpg" />
-</a>
+	html, err := e.Render("welcome", edge.O(
+		"user", edge.O("username", "virk"),
+		"tasks", edge.A("Write docs", "Ship"),
+	))
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(html)
+}
+```
 
-</td>
+`views/welcome.edge`:
 
-</tr>
+```edge
+<h1>Hello {{ user.username }}, welcome to {{ appName }}</h1>
 
-<tr>
+@each(task in tasks)
+  @!component('components/task', { title: task })
+@end
+```
 
-<td>
+### JavaScript values
 
-<a href="https://meteor.software/g6h?utm_source=adonisjs.com">
-  <img src="https://raw.githubusercontent.com/thetutlage/static/refs/heads/main/featured_sponsors/logos/galaxy.jpg" />
-</a>
+Everything a template sees is a JavaScript value, written in Go with package
+`github.com/edge-js/edge-go/js`: `js.Undefined`, `nil` for `null`, `float64`, `string`, `bool`,
+objects built with `edge.O(key, value, ...)` (keys keep their order), arrays built with
+`edge.A(...)`, `*js.Date` and functions:
 
-</td>
+```go
+e.Global("shout", &js.Function{Name: "shout", Length: 1, Call: func(this any, args []any) (any, error) {
+	return strings.ToUpper(js.ToString(js.Arg(args, 0))) + "!", nil
+}})
+```
 
-<td>
+### The API
 
-<a href="https://www.lambdatest.com/?utm_source=adonisjs.com">
-  <img src="https://raw.githubusercontent.com/thetutlage/static/refs/heads/main/featured_sponsors/logos/lambdatest.jpg" />
-</a>
+Edge's JavaScript API maps mechanically to Go: `edge.x(...)` is `e.X(...)`, names are Go-cased, and
+a call that throws returns a non-nil error.
 
-</td>
+| Edge (JavaScript) | Go |
+| :-- | :-- |
+| `import edge from 'edge.js'` | `edge.Default` |
+| `Edge.create(options)`, `edge.configure(options)` | `edge.Create(edge.Options{...})`, `e.Configure(...)` |
+| `await edge.render(path, state)` | `e.Render(path, state)` |
+| `edge.renderSync(path, state)` | `e.RenderSync(path, state)` |
+| `await edge.renderRaw(source, state)` | `e.RenderRaw(source, state, js.Undefined)` |
+| `edge.renderRawSync(source, state)` | `e.RenderRawSync(source, state)` |
+| `edge.share(locals).render(...)` | `r, err := e.Share(locals)`, then `r.Render(...)` |
+| `edge.createRenderer()` | `e.CreateRenderer()` |
+| `edge.mount(dir)`, `edge.mount(disk, dir)`, `edge.unmount(disk)` | `e.Mount(dir)`, `e.MountDisk(disk, dir)`, `e.Unmount(disk)` |
+| `edge.registerTemplate(path, { template })`, `edge.removeTemplate(path)` | `e.RegisterTemplate(path, edge.LoaderTemplate{Template: ...})`, `e.RemoveTemplate(path)` |
+| `edge.global(name, value)`, `edge.globals` | `e.Global(name, value)`, `e.Globals()` |
+| `edge.registerTag(tag)`, `edge.use(plugin, options)`, `edge.onRender(fn)` | `e.RegisterTag(tag)`, `e.Use(plugin, options)`, `e.OnRender(fn)` |
+| `edge.processor.process(event, handler)` | `e.Processor().Process(event, handler)` |
+| `edge.compiler`, `edge.asyncCompiler`, `edge.loader` | `e.Compiler()`, `e.AsyncCompiler()`, `e.Loader()` |
+| `compiler.compile(path)`, `compiler.compileRaw(source)`, `compiler.tokenizeRaw(source)` | `c.Compile(path, nil)`, `c.CompileRaw(source, js.Undefined)`, `c.TokenizeRaw(source, js.Undefined)` |
+| `Template.macro(name, fn)`, `Template.getter(name, fn, singleton)` | `edge.Macro(name, fn)`, `edge.Getter(name, fn, singleton)` |
 
-</tr>
+`Render` and `RenderRaw` use the async compiler, where templates may `await`; the Go call returns
+once the promise has settled. [MIGRATION.md](MIGRATION.md) maps every TypeScript module and
+dependency of Edge to its Go package.
 
-<tr>
+### Errors
 
-<td>
+A call that throws in JavaScript returns the thrown value as the error. Problems Edge can point at
+in a template are `*edge.EdgeError` values, with the template's filename and line:
 
-<a href="https://relancer.com/?utm_source=adonisjs.com">
-  <img src="https://raw.githubusercontent.com/thetutlage/static/refs/heads/main/featured_sponsors/logos/relancer.jpg" />
-</a>
+```go
+_, err := e.RenderRawSync("Hello\n{{ user.name }}", nil)
+var ee *edge.EdgeError
+if errors.As(err, &ee) {
+	fmt.Println(ee.Code, ee.Filename, ee.Line, ee.Message)
+	// E_RUNTIME_EXCEPTION eval.edge 2 Cannot read properties of undefined (reading 'name')
+}
+```
 
-</td>
+Other JavaScript errors are `*js.Error` values (name and message as V8 reports them), and any
+other thrown value is a `*js.Thrown`.
 
-<td>
+### Disks, in-memory templates and components
 
-</td>
+```go
+e.Mount("/srv/app/views")                 // the default disk: e.Render("welcome", ...)
+e.MountDisk("admin", "/srv/admin/views") // a named disk: e.Render("admin::dashboard", ...)
+e.RegisterTemplate("components/button", edge.LoaderTemplate{Template: "<button>{{{ $slots.main() }}}</button>"})
+```
 
-</tr>
+As in Edge, a template path is joined to the mounted directory as it is given, so mount directories
+by their absolute path. Components (templates in the `components` directory of a disk, and in-memory templates) can be
+used as tags: `components/form/input.edge` is `@form.input(...)`, `admin::components/panel.edge`
+is `@admin.panel(...)`.
 
-</table>
+### Tags, globals, processors and plugins
 
-![](https://cdn.jsdelivr.net/gh/thetutlage/static/sponsorkit/sponsors.png)
+```go
+e.RegisterTag(&edge.Tag{
+	TagName: "upper",
+	Block:   true,
+	Compile: func(p *edge.Parser, b *edge.Buffer, token *edge.TagToken) error {
+		b.OutputRaw("<strong>")
+		for _, child := range token.Children {
+			if err := p.ProcessToken(child, b); err != nil {
+				return err
+			}
+		}
+		b.OutputRaw("</strong>")
+		return nil
+	},
+})
 
-[gh-workflow-image]: https://img.shields.io/github/actions/workflow/status/edge-js/edge/checks.yml?style=for-the-badge
-[gh-workflow-url]: https://github.com/edge-js/edge/actions/workflows/checks.yml "Github action"
+e.Processor().Process("output", func(d edge.ProcessorData) (string, bool, error) {
+	return strings.TrimSpace(d.Output), true, nil
+})
 
-[typescript-image]: https://img.shields.io/badge/Typescript-294E80.svg?style=for-the-badge&logo=typescript
-[typescript-url]: "typescript"
+e.Use(func(e *edge.Edge, firstRun bool, options any) error {
+	if firstRun {
+		e.Global("version", "1.0.0")
+	}
+	return nil
+}, js.Undefined)
+```
 
-[license-image]: https://img.shields.io/npm/l/edge.js?color=blueviolet&style=for-the-badge
-[license-url]: LICENSE.md 'license'
+`edge.Macro` and `edge.Getter` add properties to the `template` object of every template, as
+`Template.macro` and `Template.getter` do.
 
-[npm-image]: https://img.shields.io/npm/v/edge.js.svg?style=for-the-badge&logo=npm
-[npm-url]: https://npmjs.org/package/edge.js 'npm'
+### Migrating from Edge 5
+
+The migrate plugin brings back layouts, sections, `@super`, `@set` and the compat props:
+
+```go
+import "github.com/edge-js/edge-go/plugins/migrate"
+
+e.Use(migrate.Migrate, js.Undefined)
+```
+
+### Example
+
+`go run ./examples` serves the page of `examples/views` on http://127.0.0.1:3000;
+`go run ./examples -once` prints it.
+
+## How it reproduces Edge
+
+Edge turns a template into a JavaScript function and V8 runs it. This module follows the same
+chain, step for step:
+
+1. **Lexer** (`internal/lexer`, edge-lexer): the template becomes tags, mustaches, comments, raw
+   text and newlines, with the same positions and the same errors (`E_UNCLOSED_TAG`, ...).
+2. **acorn** (`internal/acorn`): every mustache and tag argument is parsed as JavaScript into an
+   ESTree, with acorn's syntax error messages.
+3. **edge-parser's transforms** (`internal/parser`): free identifiers become `state.x` unless
+   they are local variables or JavaScript globals, and expressions Edge does not allow raise
+   `E_UNALLOWED_EXPRESSION`.
+4. **astring** (`internal/astring`): the transformed tree is written back as source text, and the
+   buffer of generated statements becomes the template function's body, the same text Edge
+   produces (visible through the `compiled` processor and `Function.prototype.toString`).
+5. **The JavaScript interpreter** (`internal/jsrt`): the body is compiled with the `Function` (or
+   `AsyncFunction`) constructor and run against the `template`, `state` and `$context` objects,
+   with V8's semantics and error messages for the language and its builtins, Dates in the time
+   zone of `TZ`, and Node's `console` formatting.
+
+The output then goes through the same libraries Edge uses, ported to Go: he for escaping,
+property-information and classnames for `html.attrs` and `$props.toAttrs()`, @poppinss/inspect for
+`inspect()`, @poppinss/string for the string helpers, and Edge's stacks and processors.
+
+## Contributing
+
+`go vet ./...` and `go test ./...` must pass. All templates of a process run in one JavaScript
+realm, as they do in one Node.js process; the package is not safe for concurrent use.
+
+[gh-workflow-image]: https://img.shields.io/github/actions/workflow/status/edge-js/edge/go.yml?style=for-the-badge
+[gh-workflow-url]: https://github.com/edge-js/edge/actions/workflows/go.yml "Github action"
+
+[license-image]: https://img.shields.io/badge/license-MIT-blueviolet?style=for-the-badge
+[license-url]: LICENSE.md "license"

@@ -1,3 +1,0 @@
-The main content is
-  hello virk
-Above is an alert

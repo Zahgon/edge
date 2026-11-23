@@ -1,6 +1,0 @@
-<script>
-var a = require('a')
-</script>
-<script>
-var a = require('a')
-</script>
